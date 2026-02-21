@@ -1,0 +1,301 @@
+# ============================================================
+# HA GATEWAY - TTGO LoRa32 v2.1 (SX1276, 915MHz)
+#
+# Receives sensor data from campsite node over LoRa
+# Exposes to Home Assistant via WiFi + ESPHome API
+# ============================================================
+
+substitutions:
+  name: lora-gateway
+  friendly_name: "LoRa Gateway"
+
+esphome:
+  name: ${name}
+  friendly_name: ${friendly_name}
+  min_version: "2025.7.0"
+
+esp32:
+  board: ttgo-lora32-v21
+  variant: esp32
+  framework:
+    type: esp-idf
+
+logger:
+  level: DEBUG
+
+api:
+  encryption:
+    key: !secret api_encryption_key
+
+ota:
+  - platform: esphome
+    password: !secret ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap:
+    ssid: "${name}-fallback"
+    password: !secret ota_password
+
+captive_portal:
+
+# --- I2C for OLED ---
+i2c:
+  sda: GPIO21
+  scl: GPIO22
+  frequency: 400kHz
+
+# --- SPI for LoRa radio ---
+spi:
+  clk_pin: GPIO5
+  mosi_pin: GPIO27
+  miso_pin: GPIO19
+
+# --- LoRa Radio ---
+# MUST match campsite-node settings exactly
+sx127x:
+  cs_pin: GPIO18
+  rst_pin: GPIO23
+  dio0_pin: GPIO26
+  frequency: 915MHz
+  modulation: LORA
+  bandwidth: 125_0kHz
+  spreading_factor: 7
+  coding_rate: CR_4_5
+  crc_enable: true
+  sync_value: 0x12
+  preamble_size: 8
+  rx_start: true
+  pa_pin: BOOST
+  pa_power: 10
+
+# --- LoRa packet transport (consumer) ---
+packet_transport:
+  platform: sx127x
+  providers:
+    - name: campsite-node
+      encryption: !secret lora_encryption_key
+
+# --- Remote sensors (received over LoRa) ---
+sensor:
+  # BMS 1
+  - platform: packet_transport
+    provider: campsite-node
+    remote_id: bms1_soc
+    name: "Batt 1 SOC"
+    id: bms1_soc
+    unit_of_measurement: "%"
+    device_class: battery
+    state_class: measurement
+    accuracy_decimals: 0
+
+  - platform: packet_transport
+    provider: campsite-node
+    remote_id: bms1_voltage
+    name: "Batt 1 Voltage"
+    id: bms1_voltage
+    unit_of_measurement: "V"
+    device_class: voltage
+    state_class: measurement
+    accuracy_decimals: 2
+
+  - platform: packet_transport
+    provider: campsite-node
+    remote_id: bms1_current
+    name: "Batt 1 Current"
+    id: bms1_current
+    unit_of_measurement: "A"
+    device_class: current
+    state_class: measurement
+    accuracy_decimals: 1
+
+  - platform: packet_transport
+    provider: campsite-node
+    remote_id: bms1_power
+    name: "Batt 1 Power"
+    id: bms1_power
+    unit_of_measurement: "W"
+    device_class: power
+    state_class: measurement
+    accuracy_decimals: 0
+
+  # BMS 2
+  - platform: packet_transport
+    provider: campsite-node
+    remote_id: bms2_soc
+    name: "Batt 2 SOC"
+    id: bms2_soc
+    unit_of_measurement: "%"
+    device_class: battery
+    state_class: measurement
+    accuracy_decimals: 0
+
+  - platform: packet_transport
+    provider: campsite-node
+    remote_id: bms2_voltage
+    name: "Batt 2 Voltage"
+    id: bms2_voltage
+    unit_of_measurement: "V"
+    device_class: voltage
+    state_class: measurement
+    accuracy_decimals: 2
+
+  - platform: packet_transport
+    provider: campsite-node
+    remote_id: bms2_current
+    name: "Batt 2 Current"
+    id: bms2_current
+    unit_of_measurement: "A"
+    device_class: current
+    state_class: measurement
+    accuracy_decimals: 1
+
+  - platform: packet_transport
+    provider: campsite-node
+    remote_id: bms2_power
+    name: "Batt 2 Power"
+    id: bms2_power
+    unit_of_measurement: "W"
+    device_class: power
+    state_class: measurement
+    accuracy_decimals: 0
+
+  # Remote TTGO battery
+  - platform: packet_transport
+    provider: campsite-node
+    remote_id: ttgo_battery_voltage
+    name: "Campsite TTGO Battery"
+    id: remote_ttgo_battery
+    unit_of_measurement: "V"
+    device_class: voltage
+    state_class: measurement
+    accuracy_decimals: 2
+
+  # TODO: uncomment when Alpicool component is ready
+  # - platform: packet_transport
+  #   provider: campsite-node
+  #   remote_id: fridge_temp
+  #   name: "Fridge Temperature"
+  #   id: fridge_temp
+  #   unit_of_measurement: "C"
+  #   device_class: temperature
+  #   state_class: measurement
+  #   accuracy_decimals: 0
+  #
+  # - platform: packet_transport
+  #   provider: campsite-node
+  #   remote_id: fridge_target_temp
+  #   name: "Fridge Target Temperature"
+  #   id: fridge_target_temp
+  #   unit_of_measurement: "C"
+  #   device_class: temperature
+  #   accuracy_decimals: 0
+
+  # Local gateway sensors
+  - platform: adc
+    pin: GPIO35
+    name: "Gateway Battery Voltage"
+    id: gateway_battery
+    attenuation: 12db
+    update_interval: 60s
+    accuracy_decimals: 2
+    filters:
+      - multiply: 2.0
+      - sliding_window_moving_average:
+          window_size: 5
+          send_every: 5
+
+  - platform: wifi_signal
+    name: "Gateway WiFi Signal"
+    update_interval: 60s
+
+  - platform: uptime
+    name: "Gateway Uptime"
+
+# --- Remote binary sensors ---
+binary_sensor:
+  - platform: packet_transport
+    provider: campsite-node
+    remote_id: bms1_charging
+    name: "Batt 1 Charging"
+    id: bms1_charging
+    device_class: battery_charging
+
+  - platform: packet_transport
+    provider: campsite-node
+    remote_id: bms1_discharging
+    name: "Batt 1 Discharging"
+    id: bms1_discharging
+
+  - platform: packet_transport
+    provider: campsite-node
+    remote_id: bms2_charging
+    name: "Batt 2 Charging"
+    id: bms2_charging
+    device_class: battery_charging
+
+  - platform: packet_transport
+    provider: campsite-node
+    remote_id: bms2_discharging
+    name: "Batt 2 Discharging"
+    id: bms2_discharging
+
+  # TODO: uncomment when Alpicool component is ready
+  # - platform: packet_transport
+  #   provider: campsite-node
+  #   remote_id: fridge_power
+  #   name: "Fridge Power"
+  #   device_class: power
+
+# --- OLED Display ---
+font:
+  - file: "gfonts://Roboto"
+    id: font_small
+    size: 10
+  - file: "gfonts://Roboto"
+    id: font_medium
+    size: 14
+
+display:
+  - platform: ssd1306_i2c
+    model: "SSD1306 128x64"
+    address: 0x3C
+    update_interval: 2s
+    lambda: |-
+      // --- Battery 1 ---
+      if (id(bms1_soc).has_state()) {
+        it.printf(0, 0, id(font_medium), "B1: %.0f%%", id(bms1_soc).state);
+        it.printf(64, 0, id(font_small), "%.1fV %.0fW",
+                  id(bms1_voltage).state, id(bms1_power).state);
+      } else {
+        it.printf(0, 0, id(font_small), "B1: waiting...");
+      }
+
+      // --- Battery 2 ---
+      if (id(bms2_soc).has_state()) {
+        it.printf(0, 16, id(font_medium), "B2: %.0f%%", id(bms2_soc).state);
+        it.printf(64, 16, id(font_small), "%.1fV %.0fW",
+                  id(bms2_voltage).state, id(bms2_power).state);
+      } else {
+        it.printf(0, 16, id(font_small), "B2: waiting...");
+      }
+
+      // --- Fridge (placeholder) ---
+      it.printf(0, 34, id(font_small), "Fridge: TODO");
+
+      // --- Remote TTGO battery ---
+      if (id(remote_ttgo_battery).has_state()) {
+        it.printf(0, 46, id(font_small), "Remote: %.2fV",
+                  id(remote_ttgo_battery).state);
+      }
+
+      // --- Gateway status ---
+      it.printf(0, 56, id(font_small), "GW: %.2fV  WiFi OK",
+                id(gateway_battery).has_state() ? id(gateway_battery).state : 0.0);
+
+# --- Status LED ---
+light:
+  - platform: status_led
+    name: "Status LED"
+    pin: GPIO25

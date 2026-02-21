@@ -1,0 +1,323 @@
+# ============================================================
+# CAMPSITE NODE - TTGO LoRa32 v2.1 (SX1276, 915MHz)
+#
+# BLE sensors: 2x JK-BMS + Alpicool fridge (TODO)
+# Display: SSD1306 128x64 OLED
+# Transport: LoRa TX via packet_transport
+# No WiFi - standalone LoRa-only node
+# ============================================================
+
+substitutions:
+  name: campsite-node
+  friendly_name: "Campsite Node"
+  bms1_name: "Batt 1"
+  bms2_name: "Batt 2"
+
+esphome:
+  name: ${name}
+  friendly_name: ${friendly_name}
+  min_version: "2025.7.0"
+
+esp32:
+  board: ttgo-lora32-v21
+  variant: esp32
+  framework:
+    type: esp-idf
+
+logger:
+  level: DEBUG
+
+# No wifi/api - this is a standalone LoRa node
+# OTA via serial only
+
+# --- I2C for OLED ---
+i2c:
+  sda: GPIO21
+  scl: GPIO22
+  frequency: 400kHz
+
+# --- SPI for LoRa radio ---
+spi:
+  clk_pin: GPIO5
+  mosi_pin: GPIO27
+  miso_pin: GPIO19
+
+# --- BLE tracker + clients ---
+esp32_ble_tracker:
+  scan_parameters:
+    active: false
+
+ble_client:
+  - mac_address: !secret bms1_mac_address
+    id: ble_bms1
+  - mac_address: !secret bms2_mac_address
+    id: ble_bms2
+  # Alpicool fridge - TODO: uncomment when component is ready
+  # - mac_address: !secret fridge_mac_address
+  #   id: ble_fridge
+
+# --- JK-BMS external component ---
+external_components:
+  - source: github://syssi/esphome-jk-bms@main
+    refresh: 0s
+
+jk_bms_ble:
+  - ble_client_id: ble_bms1
+    protocol_version: JK02_32S
+    throttle: 5s
+    id: bms1
+  - ble_client_id: ble_bms2
+    protocol_version: JK02_32S
+    throttle: 5s
+    id: bms2
+
+# --- LoRa Radio ---
+sx127x:
+  cs_pin: GPIO18
+  rst_pin: GPIO23
+  dio0_pin: GPIO26
+  frequency: 915MHz
+  modulation: LORA
+  bandwidth: 125_0kHz
+  spreading_factor: 7
+  coding_rate: CR_4_5
+  crc_enable: true
+  sync_value: 0x12
+  preamble_size: 8
+  rx_start: true
+  pa_pin: BOOST
+  pa_power: 17
+
+# --- LoRa packet transport (provider) ---
+packet_transport:
+  platform: sx127x
+  update_interval: 15s
+  encryption: !secret lora_encryption_key
+  rolling_code_enable: true
+  sensors:
+    - bms1_soc
+    - bms1_voltage
+    - bms1_current
+    - bms1_power
+    - bms2_soc
+    - bms2_voltage
+    - bms2_current
+    - bms2_power
+    - ttgo_battery_voltage
+    # TODO: uncomment when Alpicool component is ready
+    # - fridge_temp
+    # - fridge_target_temp
+  binary_sensors:
+    - bms1_charging
+    - bms1_discharging
+    - bms2_charging
+    - bms2_discharging
+    # - fridge_power
+
+# --- Sensors ---
+sensor:
+  # TTGO onboard battery (GPIO35, 1:1 voltage divider)
+  - platform: adc
+    pin: GPIO35
+    name: "TTGO Battery"
+    id: ttgo_battery_voltage
+    attenuation: 12db
+    update_interval: 30s
+    accuracy_decimals: 2
+    filters:
+      - multiply: 2.0
+      - sliding_window_moving_average:
+          window_size: 5
+          send_every: 5
+
+  # --- BMS 1 sensors ---
+  - platform: jk_bms_ble
+    jk_bms_ble_id: bms1
+    state_of_charge:
+      name: "${bms1_name} SOC"
+      id: bms1_soc
+    total_voltage:
+      name: "${bms1_name} Voltage"
+      id: bms1_voltage
+    current:
+      name: "${bms1_name} Current"
+      id: bms1_current
+    power:
+      name: "${bms1_name} Power"
+      id: bms1_power
+    min_cell_voltage:
+      name: "${bms1_name} Min Cell V"
+      id: bms1_min_cell
+    max_cell_voltage:
+      name: "${bms1_name} Max Cell V"
+      id: bms1_max_cell
+    delta_cell_voltage:
+      name: "${bms1_name} Delta Cell V"
+    temperature_sensor_1:
+      name: "${bms1_name} Temp 1"
+      id: bms1_temp1
+    temperature_sensor_2:
+      name: "${bms1_name} Temp 2"
+    power_tube_temperature:
+      name: "${bms1_name} MOSFET Temp"
+    capacity_remaining:
+      name: "${bms1_name} Capacity Remaining"
+    charging_cycles:
+      name: "${bms1_name} Cycles"
+
+  # --- BMS 2 sensors ---
+  - platform: jk_bms_ble
+    jk_bms_ble_id: bms2
+    state_of_charge:
+      name: "${bms2_name} SOC"
+      id: bms2_soc
+    total_voltage:
+      name: "${bms2_name} Voltage"
+      id: bms2_voltage
+    current:
+      name: "${bms2_name} Current"
+      id: bms2_current
+    power:
+      name: "${bms2_name} Power"
+      id: bms2_power
+    min_cell_voltage:
+      name: "${bms2_name} Min Cell V"
+      id: bms2_min_cell
+    max_cell_voltage:
+      name: "${bms2_name} Max Cell V"
+      id: bms2_max_cell
+    delta_cell_voltage:
+      name: "${bms2_name} Delta Cell V"
+    temperature_sensor_1:
+      name: "${bms2_name} Temp 1"
+      id: bms2_temp1
+    temperature_sensor_2:
+      name: "${bms2_name} Temp 2"
+    power_tube_temperature:
+      name: "${bms2_name} MOSFET Temp"
+    capacity_remaining:
+      name: "${bms2_name} Capacity Remaining"
+    charging_cycles:
+      name: "${bms2_name} Cycles"
+
+# --- Binary Sensors ---
+binary_sensor:
+  - platform: jk_bms_ble
+    jk_bms_ble_id: bms1
+    charging:
+      name: "${bms1_name} Charging"
+      id: bms1_charging
+    discharging:
+      name: "${bms1_name} Discharging"
+      id: bms1_discharging
+    balancing:
+      name: "${bms1_name} Balancing"
+    online_status:
+      name: "${bms1_name} Online"
+      id: bms1_online
+
+  - platform: jk_bms_ble
+    jk_bms_ble_id: bms2
+    charging:
+      name: "${bms2_name} Charging"
+      id: bms2_charging
+    discharging:
+      name: "${bms2_name} Discharging"
+      id: bms2_discharging
+    balancing:
+      name: "${bms2_name} Balancing"
+    online_status:
+      name: "${bms2_name} Online"
+      id: bms2_online
+
+# --- Switches (BMS control) ---
+switch:
+  - platform: jk_bms_ble
+    jk_bms_ble_id: bms1
+    charging:
+      name: "${bms1_name} Enable Charging"
+    discharging:
+      name: "${bms1_name} Enable Discharging"
+    balancer:
+      name: "${bms1_name} Enable Balancer"
+
+  - platform: jk_bms_ble
+    jk_bms_ble_id: bms2
+    charging:
+      name: "${bms2_name} Enable Charging"
+    discharging:
+      name: "${bms2_name} Enable Discharging"
+    balancer:
+      name: "${bms2_name} Enable Balancer"
+
+  - platform: ble_client
+    ble_client_id: ble_bms1
+    name: "${bms1_name} BLE Connection"
+    id: ble_switch_bms1
+  - platform: ble_client
+    ble_client_id: ble_bms2
+    name: "${bms2_name} BLE Connection"
+    id: ble_switch_bms2
+
+# --- Text Sensors ---
+text_sensor:
+  - platform: jk_bms_ble
+    jk_bms_ble_id: bms1
+    errors:
+      name: "${bms1_name} Errors"
+  - platform: jk_bms_ble
+    jk_bms_ble_id: bms2
+    errors:
+      name: "${bms2_name} Errors"
+
+# --- OLED Display ---
+font:
+  - file: "gfonts://Roboto"
+    id: font_small
+    size: 10
+  - file: "gfonts://Roboto"
+    id: font_medium
+    size: 14
+
+display:
+  - platform: ssd1306_i2c
+    model: "SSD1306 128x64"
+    address: 0x3C
+    update_interval: 2s
+    lambda: |-
+      // --- Battery 1 ---
+      if (id(bms1_online).state) {
+        it.printf(0, 0, id(font_medium), "B1: %.0f%%", id(bms1_soc).state);
+        it.printf(64, 0, id(font_small), "%.1fV %.0fW",
+                  id(bms1_voltage).state, id(bms1_power).state);
+      } else {
+        it.printf(0, 0, id(font_medium), "B1: offline");
+      }
+
+      // --- Battery 2 ---
+      if (id(bms2_online).state) {
+        it.printf(0, 16, id(font_medium), "B2: %.0f%%", id(bms2_soc).state);
+        it.printf(64, 16, id(font_small), "%.1fV %.0fW",
+                  id(bms2_voltage).state, id(bms2_power).state);
+      } else {
+        it.printf(0, 16, id(font_medium), "B2: offline");
+      }
+
+      // --- Fridge (placeholder) ---
+      it.printf(0, 34, id(font_small), "Fridge: TODO");
+      // TODO: uncomment when Alpicool is ready
+      // if (id(fridge_temp).has_state()) {
+      //   it.printf(0, 34, id(font_medium), "Fridge: %.0fC -> %.0fC",
+      //             id(fridge_temp).state, id(fridge_target_temp).state);
+      // }
+
+      // --- TTGO battery ---
+      if (id(ttgo_battery_voltage).has_state()) {
+        it.printf(0, 52, id(font_small), "TTGO: %.2fV", id(ttgo_battery_voltage).state);
+      }
+
+# --- Status LED ---
+light:
+  - platform: status_led
+    name: "Status LED"
+    pin: GPIO25
