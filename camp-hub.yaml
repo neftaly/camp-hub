@@ -2,8 +2,8 @@
 # CAMP HUB - ESP32-C6
 #
 # BLE sensors: 1x JK-BMS + Alpicool fridge
-# WiFi connected to HA
-# E-ink display + LoRa radio to be added later
+# WiFi connected to HA + local web dashboard
+# BLE GATT server for phone PWA dashboard
 # ============================================================
 
 substitutions:
@@ -14,6 +14,12 @@ substitutions:
 esphome:
   name: ${name}
   friendly_name: ${friendly_name}
+  min_version: "2025.7.0"
+  devices:
+    - id: battery
+      name: "${bms_name}"
+    - id: fridge
+      name: "Fridge"
 
 esp32:
   board: esp32-c6-devkitc-1
@@ -37,6 +43,8 @@ api:
   encryption:
     key: !secret api_encryption_key
 
+web_server:
+
 ota:
   - platform: esphome
     password: !secret ota_password
@@ -51,6 +59,146 @@ ble_client:
     id: ble_bms
   - mac_address: !secret fridge_mac_address
     id: ble_fridge
+
+# --- BLE server (GATT for phone PWA) ---
+esp32_ble:
+  server:
+    manufacturer: "Camp Hub"
+    model: "ESP32-C6"
+
+esp32_ble_server:
+  services:
+    # Battery service
+    - uuid: "c4400000-ca6d-4860-ab60-e3a84b000000"
+      advertise: true
+      characteristics:
+        - uuid: "c4400000-ca6d-4860-ab60-e3a84b000001"
+          id: ble_batt_soc
+          value:
+            type: float
+          read: true
+          notify: true
+        - uuid: "c4400000-ca6d-4860-ab60-e3a84b000002"
+          id: ble_batt_voltage
+          value:
+            type: float
+          read: true
+          notify: true
+        - uuid: "c4400000-ca6d-4860-ab60-e3a84b000003"
+          id: ble_batt_current
+          value:
+            type: float
+          read: true
+          notify: true
+        - uuid: "c4400000-ca6d-4860-ab60-e3a84b000004"
+          id: ble_batt_power
+          value:
+            type: float
+          read: true
+          notify: true
+        - uuid: "c4400000-ca6d-4860-ab60-e3a84b000005"
+          id: ble_batt_temp1
+          value:
+            type: float
+          read: true
+          notify: true
+        - uuid: "c4400000-ca6d-4860-ab60-e3a84b000006"
+          id: ble_batt_temp2
+          value:
+            type: float
+          read: true
+          notify: true
+        - uuid: "c4400000-ca6d-4860-ab60-e3a84b000007"
+          id: ble_batt_charging
+          value:
+            type: uint8_t
+          read: true
+          notify: true
+        - uuid: "c4400000-ca6d-4860-ab60-e3a84b000008"
+          id: ble_batt_discharging
+          value:
+            type: uint8_t
+          read: true
+          notify: true
+        - uuid: "c4400000-ca6d-4860-ab60-e3a84b000009"
+          id: ble_batt_online
+          value:
+            type: uint8_t
+          read: true
+          notify: true
+        - uuid: "c4400000-ca6d-4860-ab60-e3a84b00000a"
+          id: ble_bms_enable_charging
+          value:
+            type: uint8_t
+          read: true
+          write: true
+          notify: true
+          on_write:
+            then:
+              - lambda: |-
+                  if (x.size() > 0) {
+                    if (x[0]) {
+                      id(sw_bms_charging).turn_on();
+                    } else {
+                      id(sw_bms_charging).turn_off();
+                    }
+                  }
+        - uuid: "c4400000-ca6d-4860-ab60-e3a84b00000b"
+          id: ble_bms_enable_discharging
+          value:
+            type: uint8_t
+          read: true
+          write: true
+          notify: true
+          on_write:
+            then:
+              - lambda: |-
+                  if (x.size() > 0) {
+                    if (x[0]) {
+                      id(sw_bms_discharging).turn_on();
+                    } else {
+                      id(sw_bms_discharging).turn_off();
+                    }
+                  }
+
+    # Fridge service
+    - uuid: "c4400100-ca6d-4860-ab60-e3a84b000000"
+      characteristics:
+        - uuid: "c4400000-ca6d-4860-ab60-e3a84b000101"
+          id: ble_fridge_temp
+          value:
+            type: float
+          read: true
+          notify: true
+        - uuid: "c4400000-ca6d-4860-ab60-e3a84b000102"
+          id: ble_fridge_target
+          value:
+            type: float
+          read: true
+          notify: true
+        - uuid: "c4400000-ca6d-4860-ab60-e3a84b000103"
+          id: ble_fridge_powered_on
+          value:
+            type: uint8_t
+          read: true
+          notify: true
+        - uuid: "c4400000-ca6d-4860-ab60-e3a84b000104"
+          id: ble_fridge_power
+          value:
+            type: uint8_t
+          read: true
+          write: true
+          notify: true
+          on_write:
+            then:
+              - lambda: |-
+                  if (x.size() > 0) {
+                    if (x[0]) {
+                      id(sw_fridge_power).turn_on();
+                    } else {
+                      id(sw_fridge_power).turn_off();
+                    }
+                  }
 
 # --- External components ---
 external_components:
@@ -76,39 +224,63 @@ sensor:
     jk_bms_ble_id: bms
     state_of_charge:
       name: "${bms_name} SOC"
+      id: sens_batt_soc
+      device_id: battery
     total_voltage:
       name: "${bms_name} Voltage"
+      id: sens_batt_voltage
+      device_id: battery
     current:
       name: "${bms_name} Current"
+      id: sens_batt_current
+      device_id: battery
     power:
       name: "${bms_name} Power"
+      id: sens_batt_power
+      device_id: battery
     min_cell_voltage:
       name: "${bms_name} Min Cell V"
+      device_id: battery
     max_cell_voltage:
       name: "${bms_name} Max Cell V"
+      device_id: battery
     delta_cell_voltage:
       name: "${bms_name} Delta Cell V"
+      device_id: battery
     temperature_sensor_1:
       name: "${bms_name} Temp 1"
+      id: sens_batt_temp1
+      device_id: battery
     temperature_sensor_2:
       name: "${bms_name} Temp 2"
+      id: sens_batt_temp2
+      device_id: battery
     power_tube_temperature:
       name: "${bms_name} MOSFET Temp"
+      device_id: battery
     capacity_remaining:
       name: "${bms_name} Capacity Remaining"
+      device_id: battery
     charging_cycles:
       name: "${bms_name} Cycles"
+      device_id: battery
 
   - platform: alpicool_ble
     alpicool_ble_id: fridge
     current_temperature:
       name: "Fridge Temperature"
+      id: sens_fridge_temp
+      device_id: fridge
     target_temperature:
       name: "Fridge Target"
+      id: sens_fridge_target
+      device_id: fridge
     battery_percent:
       name: "Fridge Battery"
+      device_id: fridge
     battery_voltage:
       name: "Fridge Battery Voltage"
+      device_id: fridge
 
   - platform: wifi_signal
     name: "WiFi Signal"
@@ -119,52 +291,116 @@ binary_sensor:
     jk_bms_ble_id: bms
     charging:
       name: "${bms_name} Charging"
+      id: sens_batt_charging
+      device_id: battery
     discharging:
       name: "${bms_name} Discharging"
+      id: sens_batt_discharging
+      device_id: battery
     balancing:
       name: "${bms_name} Balancing"
+      device_id: battery
     online_status:
       name: "${bms_name} Online"
+      id: sens_batt_online
+      device_id: battery
 
   - platform: alpicool_ble
     alpicool_ble_id: fridge
     powered_on:
       name: "Fridge Powered On"
+      id: sens_fridge_powered_on
+      device_id: fridge
     controls_locked:
       name: "Fridge Controls Locked"
+      device_id: fridge
 
 climate:
   - platform: alpicool_ble
     alpicool_ble_id: fridge
     name: "Fridge"
+    device_id: fridge
 
 select:
   - platform: alpicool_ble
     alpicool_ble_id: fridge
     run_mode:
       name: "Fridge Run Mode"
+      device_id: fridge
     battery_saver:
       name: "Fridge Battery Protection"
+      device_id: fridge
 
 switch:
   - platform: jk_bms_ble
     jk_bms_ble_id: bms
     charging:
       name: "${bms_name} Enable Charging"
+      id: sw_bms_charging
+      device_id: battery
     discharging:
       name: "${bms_name} Enable Discharging"
+      id: sw_bms_discharging
+      device_id: battery
     balancer:
       name: "${bms_name} Enable Balancer"
+      device_id: battery
 
   - platform: alpicool_ble
     alpicool_ble_id: fridge
     power:
       name: "Fridge Power"
+      id: sw_fridge_power
+      device_id: fridge
     controls_lock:
       name: "Fridge Controls Lock"
+      device_id: fridge
 
 text_sensor:
   - platform: jk_bms_ble
     jk_bms_ble_id: bms
     errors:
       name: "${bms_name} Errors"
+      device_id: battery
+
+# --- BLE GATT notify interval ---
+interval:
+  - interval: 5s
+    then:
+      - lambda: |-
+          // Battery sensors
+          if (id(sens_batt_soc).has_state())
+            id(ble_batt_soc).set_value(id(sens_batt_soc).state);
+          if (id(sens_batt_voltage).has_state())
+            id(ble_batt_voltage).set_value(id(sens_batt_voltage).state);
+          if (id(sens_batt_current).has_state())
+            id(ble_batt_current).set_value(id(sens_batt_current).state);
+          if (id(sens_batt_power).has_state())
+            id(ble_batt_power).set_value(id(sens_batt_power).state);
+          if (id(sens_batt_temp1).has_state())
+            id(ble_batt_temp1).set_value(id(sens_batt_temp1).state);
+          if (id(sens_batt_temp2).has_state())
+            id(ble_batt_temp2).set_value(id(sens_batt_temp2).state);
+
+          // Battery binary sensors
+          if (id(sens_batt_charging).has_state())
+            id(ble_batt_charging).set_value({(uint8_t)(id(sens_batt_charging).state ? 1 : 0)});
+          if (id(sens_batt_discharging).has_state())
+            id(ble_batt_discharging).set_value({(uint8_t)(id(sens_batt_discharging).state ? 1 : 0)});
+          if (id(sens_batt_online).has_state())
+            id(ble_batt_online).set_value({(uint8_t)(id(sens_batt_online).state ? 1 : 0)});
+
+          // BMS switch states
+          id(ble_bms_enable_charging).set_value({(uint8_t)(id(sw_bms_charging).state ? 1 : 0)});
+          id(ble_bms_enable_discharging).set_value({(uint8_t)(id(sw_bms_discharging).state ? 1 : 0)});
+
+          // Fridge sensors
+          if (id(sens_fridge_temp).has_state())
+            id(ble_fridge_temp).set_value(id(sens_fridge_temp).state);
+          if (id(sens_fridge_target).has_state())
+            id(ble_fridge_target).set_value(id(sens_fridge_target).state);
+
+          // Fridge binary/switch
+          if (id(sens_fridge_powered_on).has_state())
+            id(ble_fridge_powered_on).set_value({(uint8_t)(id(sens_fridge_powered_on).state ? 1 : 0)});
+          id(ble_fridge_power).set_value({(uint8_t)(id(sw_fridge_power).state ? 1 : 0)});

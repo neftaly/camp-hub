@@ -1,10 +1,9 @@
 # ============================================================
-# CAMPSITE NODE - TTGO LoRa32 v2.1 (SX1276, 915MHz)
+# CAMPSITE NODE - TTGO LoRa32 v2.1
 #
 # BLE sensors: 2x JK-BMS + Alpicool fridge
 # Display: SSD1306 128x64 OLED
-# Transport: LoRa TX via packet_transport
-# No WiFi - standalone LoRa-only node
+# Standalone local display node (no WiFi)
 # ============================================================
 
 substitutions:
@@ -27,7 +26,7 @@ esp32:
 logger:
   level: DEBUG
 
-# No wifi/api - this is a standalone LoRa node
+# No wifi/api - standalone local display node
 # OTA via serial only
 
 # --- I2C for OLED ---
@@ -35,12 +34,6 @@ i2c:
   sda: GPIO21
   scl: GPIO22
   frequency: 400kHz
-
-# --- SPI for LoRa radio ---
-spi:
-  clk_pin: GPIO5
-  mosi_pin: GPIO27
-  miso_pin: GPIO19
 
 # --- BLE tracker + clients ---
 esp32_ble_tracker:
@@ -76,48 +69,6 @@ alpicool_ble:
   - ble_client_id: ble_fridge
     throttle: 10s
     id: fridge
-
-# --- LoRa Radio ---
-sx127x:
-  cs_pin: GPIO18
-  rst_pin: GPIO23
-  dio0_pin: GPIO26
-  frequency: 915MHz
-  modulation: LORA
-  bandwidth: 125_0kHz
-  spreading_factor: 7
-  coding_rate: CR_4_5
-  crc_enable: true
-  sync_value: 0x12
-  preamble_size: 8
-  rx_start: true
-  pa_pin: BOOST
-  pa_power: 17
-
-# --- LoRa packet transport (provider) ---
-packet_transport:
-  platform: sx127x
-  update_interval: 15s
-  encryption: !secret lora_encryption_key
-  rolling_code_enable: true
-  sensors:
-    - bms1_soc
-    - bms1_voltage
-    - bms1_current
-    - bms1_power
-    - bms2_soc
-    - bms2_voltage
-    - bms2_current
-    - bms2_power
-    - ttgo_battery_voltage
-    - fridge_temp
-    - fridge_target_temp
-  binary_sensors:
-    - bms1_charging
-    - bms1_discharging
-    - bms2_charging
-    - bms2_discharging
-    - fridge_powered_on
 
 # --- Sensors ---
 sensor:
