@@ -88,7 +88,7 @@ describe("store", () => {
       useStore.getState().entities.get("sensor-fridge_target")?.value,
     ).toBe(5);
     expect(mockWrite).toHaveBeenCalledWith(
-      "/climate/fridge/Fridge/set?target_temperature=5",
+      "/climate/Fridge/Fridge/set?target_temperature=5",
     );
   });
 
@@ -100,7 +100,7 @@ describe("store", () => {
       useStore.getState().entities.get("select-fridge_run_mode")?.state,
     ).toBe("Max");
     expect(mockWrite).toHaveBeenCalledWith(
-      "/select/fridge/Fridge%20Run%20Mode/set?option=Max",
+      "/select/Fridge/Fridge%20Run%20Mode/set?option=Max",
     );
   });
 
@@ -113,7 +113,31 @@ describe("store", () => {
         ?.state,
     ).toBe("Low");
     expect(mockWrite).toHaveBeenCalledWith(
-      "/select/fridge/Fridge%20Battery%20Protection/set?option=Low",
+      "/select/Fridge/Fridge%20Battery%20Protection/set?option=Low",
+    );
+  });
+
+  it("setFridgePower(true) optimistically updates and writes turn_on", () => {
+    useStore.getState().connect();
+    useStore.getState().setFridgePower(true);
+
+    expect(
+      useStore.getState().entities.get("switch-fridge_power")?.state,
+    ).toBe("ON");
+    expect(mockWrite).toHaveBeenCalledWith(
+      "/switch/Fridge/Fridge%20Power/turn_on",
+    );
+  });
+
+  it("setFridgePower(false) optimistically updates and writes turn_off", () => {
+    useStore.getState().connect();
+    useStore.getState().setFridgePower(false);
+
+    expect(
+      useStore.getState().entities.get("switch-fridge_power")?.state,
+    ).toBe("OFF");
+    expect(mockWrite).toHaveBeenCalledWith(
+      "/switch/Fridge/Fridge%20Power/turn_off",
     );
   });
 });

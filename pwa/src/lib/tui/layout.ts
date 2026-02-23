@@ -103,9 +103,10 @@ export function computeOverlays(layouts: LayoutNode[]): Overlay[] {
           min: child.node.min,
           max: child.node.max,
           onChange: child.node.onChange,
+          onDrag: child.node.onDrag,
         });
       } else if (child.node.type === "radio") {
-        let offset = RADIO_LABEL_WIDTH;
+        let offset = Math.max(child.node.label.length, RADIO_LABEL_WIDTH);
         for (const opt of child.node.options) {
           const optWidth = 3 + opt.length; // " ● opt"
           overlays.push({

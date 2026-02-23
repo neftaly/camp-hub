@@ -31,67 +31,45 @@ function putEntity(
   return next;
 }
 
-export const useStore = create<Store>((set) => ({
-  entities: new Map(),
-  connected: false,
-  connecting: false,
-  error: null,
+export const useStore = create<Store>((set) => {
+  function command(id: string, patch: Partial<StateEvent>, endpoint: string) {
+    set((prev) => ({ entities: putEntity(prev.entities, id, patch) }));
+    transport?.write(endpoint);
+  }
 
-  connect: () => {
-    transport?.disconnect();
-    set({ connecting: true, error: null });
+  return {
+    entities: new Map(),
+    connected: false,
+    connecting: false,
+    error: null,
 
-    transport = transportConnect(
-      (id, event) => {
-        set((prev) => ({
-          entities: putEntity(prev.entities, id, event),
-        }));
-      },
-      () => set({ connected: true, connecting: false, error: null }),
-      () => set({ connected: false, connecting: false, error: "Connection lost" }),
-    );
-  },
+    connect: () => {
+      transport?.disconnect();
+      set({ connecting: true, error: null });
 
-  setFridgeTarget: (value) => {
-    set((prev) => ({
-      entities: putEntity(prev.entities, "sensor-fridge_target", {
-        state: String(value),
-        value,
-      }),
-    }));
-    transport?.write(`/climate/fridge/Fridge/set?target_temperature=${value}`);
-  },
+      transport = transportConnect(
+        (id, event) => {
+          set((prev) => ({ entities: putEntity(prev.entities, id, event) }));
+        },
+        () => set({ connected: true, connecting: false, error: null }),
+        () => set({ connected: false, connecting: false, error: "Connection lost" }),
+      );
+    },
 
-  setFridgeMode: (value) => {
-    set((prev) => ({
-      entities: putEntity(prev.entities, "select-fridge_run_mode", {
-        state: value,
-      }),
-    }));
-    transport?.write(
-      `/select/fridge/Fridge%20Run%20Mode/set?option=${value}`,
-    );
-  },
+    setFridgeTarget: (value) =>
+      command("sensor-fridge_target", { state: String(value), value },
+        `/climate/Fridge/Fridge/set?target_temperature=${value}`),
 
-  setFridgeCutoff: (value) => {
-    set((prev) => ({
-      entities: putEntity(prev.entities, "select-fridge_battery_protection", {
-        state: value,
-      }),
-    }));
-    transport?.write(
-      `/select/fridge/Fridge%20Battery%20Protection/set?option=${value}`,
-    );
-  },
+    setFridgeMode: (value) =>
+      command("select-fridge_run_mode", { state: value },
+        `/select/Fridge/Fridge%20Run%20Mode/set?option=${value}`),
 
-  setFridgePower: (on) => {
-    set((prev) => ({
-      entities: putEntity(prev.entities, "switch-fridge_power", {
-        state: on ? "ON" : "OFF",
-      }),
-    }));
-    transport?.write(
-      `/switch/fridge/Fridge%20Power/${on ? "turn_on" : "turn_off"}`,
-    );
-  },
-}));
+    setFridgeCutoff: (value) =>
+      command("select-fridge_battery_protection", { state: value },
+        `/select/Fridge/Fridge%20Battery%20Protection/set?option=${value}`),
+
+    setFridgePower: (on) =>
+      command("switch-fridge_power", { state: on ? "ON" : "OFF" },
+        `/switch/Fridge/Fridge%20Power/${on ? "turn_on" : "turn_off"}`),
+  };
+});

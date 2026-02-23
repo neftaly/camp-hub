@@ -100,6 +100,7 @@ describe("useFridge", () => {
     expect(result.current.target).toBeNull();
     expect(result.current.mode).toBeNull();
     expect(result.current.cutoff).toBeNull();
+    expect(result.current.power).toBeNull();
   });
 
   it("returns raw values from entities", () => {
@@ -107,19 +108,28 @@ describe("useFridge", () => {
       ["sensor-fridge_temperature", { state: "5", value: 5 }],
       ["sensor-fridge_target", { state: "-5", value: -5 }],
       ["select-fridge_run_mode", { state: "Eco" }],
-      ["select-fridge_battery_protection", { state: "Hi" }],
+      ["select-fridge_battery_protection", { state: "High" }],
+      ["switch-fridge_power", { state: "ON" }],
     ]);
     const { result } = renderHook(() => useFridge());
     expect(result.current.temperature).toBe(5);
     expect(result.current.target).toBe(-5);
     expect(result.current.mode).toBe("Eco");
-    expect(result.current.cutoff).toBe("Hi");
+    expect(result.current.cutoff).toBe("High");
+    expect(result.current.power).toBe(true);
   });
 
-  it("exposes setTarget, setMode, setCutoff functions", () => {
+  it("returns power=false when switch is OFF", () => {
+    setEntities([["switch-fridge_power", { state: "OFF" }]]);
+    const { result } = renderHook(() => useFridge());
+    expect(result.current.power).toBe(false);
+  });
+
+  it("exposes setTarget, setMode, setCutoff, setPower functions", () => {
     const { result } = renderHook(() => useFridge());
     expect(typeof result.current.setTarget).toBe("function");
     expect(typeof result.current.setMode).toBe("function");
     expect(typeof result.current.setCutoff).toBe("function");
+    expect(typeof result.current.setPower).toBe("function");
   });
 });

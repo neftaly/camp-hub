@@ -1,7 +1,9 @@
 export interface StateEvent {
   id: string;
   state: string;
-  value: number;
+  // ESPHome sends number for sensors, boolean for switches/binary_sensors,
+  // and string for selects/text_sensors
+  value: number | boolean | string;
   current_temperature?: number;
   target_temperature?: number;
   mode?: string;
@@ -59,7 +61,7 @@ export function connect(
   open();
 
   return {
-    write: (endpoint) => fetch(endpoint, { method: "POST" }).then(() => {}),
+    write: (endpoint) => fetch(endpoint, { method: "POST", body: "" }).then(() => {}),
     disconnect: () => {
       stopped = true;
       if (retryTimeout !== null) {

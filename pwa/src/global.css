@@ -65,26 +65,10 @@ body {
   color: var(--bg);
 }
 
-/* Panel + Dialog containers */
+/* Panel containers */
 .panel {
   position: relative;
   background: var(--panel-bg);
-}
-
-.dialog-overlay {
-  position: fixed;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  background: rgba(10, 6, 16, 0.5);
-  backdrop-filter: blur(2px);
-  z-index: 10;
-}
-
-.dialog {
-  position: relative;
-  width: 28ch;
-  background: var(--bg);
 }
 
 /* Transparent interactive overlays */

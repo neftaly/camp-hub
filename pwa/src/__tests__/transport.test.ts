@@ -94,7 +94,7 @@ describe("transport", () => {
 
     expect(globalThis.fetch).toHaveBeenCalledWith(
       "/climate/fridge/Fridge/set?target_temperature=5",
-      { method: "POST" },
+      { method: "POST", body: "" },
     );
     handle.disconnect();
   });
@@ -155,4 +155,5 @@ describe("transport", () => {
 
     handle.disconnect();
   });
+
 });

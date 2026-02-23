@@ -31,6 +31,7 @@ export interface SliderProps {
   max: number;
   unit: string;
   onChange: (value: number) => void;
+  onDrag?: (value: number | null) => void;
 }
 
 export interface RadioProps {

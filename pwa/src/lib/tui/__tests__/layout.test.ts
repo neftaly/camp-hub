@@ -170,8 +170,8 @@ describe("computeOverlays", () => {
       width: 26,
       min: -20,
       max: 20,
-      onChange,
     });
+    expect(typeof (overlays[0] as { onChange: unknown }).onChange).toBe("function");
   });
 
   it("generates radio overlays per option", () => {

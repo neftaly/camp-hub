@@ -76,16 +76,17 @@ describe("Tui", () => {
       left: 0, right: 200, top: 0, bottom: 20, width: 200, height: 20, x: 0, y: 0, toJSON() {},
     });
 
-    // Simulate pointerdown at midpoint (x=100 → ratio 0.5 → value 0)
+    // pointerDown starts drag but does not fire onChange
     fireEvent.pointerDown(overlay, { clientX: 100, pointerId: 1 });
-    expect(onChange).toHaveBeenCalledWith(0);
+    expect(onChange).not.toHaveBeenCalled();
 
-    // Simulate drag to 75% (x=150 → ratio 0.75 → value 10)
+    // pointerMove during drag does not fire onChange
     fireEvent.pointerMove(overlay, { clientX: 150, pointerId: 1 });
-    expect(onChange).toHaveBeenCalledWith(10);
+    expect(onChange).not.toHaveBeenCalled();
 
-    // Drag to left edge (x=0 → ratio 0 → value -20)
-    fireEvent.pointerMove(overlay, { clientX: 0, pointerId: 1 });
+    // onChange fires only on pointerUp with final position
+    fireEvent.pointerUp(overlay, { clientX: 0, pointerId: 1 });
+    expect(onChange).toHaveBeenCalledTimes(1);
     expect(onChange).toHaveBeenCalledWith(-20);
   });
 

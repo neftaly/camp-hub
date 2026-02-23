@@ -193,12 +193,21 @@ function SliderOverlayElement({ overlay }: { overlay: SliderOverlay }) {
       const el = overlayRef.current;
       if (!el) return;
       el.setPointerCapture(e.pointerId);
-      overlay.onChange(getValueFromX(e.clientX));
+      overlay.onDrag?.(getValueFromX(e.clientX));
     },
     [getValueFromX, overlay],
   );
 
   const onPointerMove = useCallback(
+    (e: React.PointerEvent) => {
+      if (!(e.currentTarget as HTMLElement).hasPointerCapture(e.pointerId))
+        return;
+      overlay.onDrag?.(getValueFromX(e.clientX));
+    },
+    [getValueFromX, overlay],
+  );
+
+  const onPointerUp = useCallback(
     (e: React.PointerEvent) => {
       if (!(e.currentTarget as HTMLElement).hasPointerCapture(e.pointerId))
         return;
@@ -212,6 +221,7 @@ function SliderOverlayElement({ overlay }: { overlay: SliderOverlay }) {
       ref={overlayRef}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
       className="tui-overlay tui-overlay--thumb"
       style={{
         top: `${overlay.top}em`,

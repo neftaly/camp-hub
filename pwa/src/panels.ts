@@ -3,7 +3,10 @@ import { useStore } from "./store";
 // --- Selectors ---
 
 export function useSensor(id: string): number | null {
-  return useStore((s) => s.entities.get(id)?.value ?? null);
+  return useStore((s) => {
+    const value = s.entities.get(id)?.value;
+    return typeof value === "number" ? value : null;
+  });
 }
 
 export function useBinarySensor(id: string): boolean | null {

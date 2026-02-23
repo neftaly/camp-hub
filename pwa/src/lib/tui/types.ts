@@ -38,6 +38,7 @@ export interface SliderNode {
   min: number;
   max: number;
   unit: string;
+  onDrag?: (value: number | null) => void;
   onChange: (value: number) => void;
 }
 
@@ -107,6 +108,7 @@ export interface SliderOverlay {
   min: number;
   max: number;
   onChange: (value: number) => void;
+  onDrag?: (value: number | null) => void;
 }
 
 export interface RadioOverlay {

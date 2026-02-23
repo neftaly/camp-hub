@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Tui, Box, Text, Slider, Radio } from "./lib/tui";
 import {
   useBattery,
@@ -9,15 +9,6 @@ import {
   CUTOFF_LEVELS,
 } from "./panels";
 import { useStore } from "./store";
-
-function formatValue(
-  value: number | null,
-  decimals: number,
-  unit: string,
-): string {
-  if (value === null) return `--.-${unit}`;
-  return `${value.toFixed(decimals)}${unit}`;
-}
 
 function formatCurrent(value: number | null): string {
   if (value === null) return "--.-A";
@@ -33,18 +24,18 @@ export function App() {
 
   const socText = soc !== null ? `${Math.round(soc)}%` : "--%";
   const currentText = formatCurrent(current);
-  const currentColor =
-    current === null
-      ? ("dim" as const)
-      : charging
-        ? ("green" as const)
-        : ("accent" as const);
+  const currentColor = current === null ? "dim" : charging ? "green" : "accent";
   const remainingLabel = charging ? "Full in" : "Remaining";
-  const voltageText = formatValue(voltage, 1, "V");
-  const voltageColor = voltage !== null ? undefined : ("dim" as const);
+  const voltageText = voltage !== null ? `${voltage.toFixed(1)}V` : "--.-V";
+  const voltageColor = voltage !== null ? undefined : "dim";
   const tempText =
     temperature !== null ? `${Math.round(temperature)}°C` : "--°C";
   const displayTarget = target !== null ? Math.round(target) : null;
+  const [dragTarget, setDragTarget] = useState<number | null>(null);
+  const onTargetChange = useCallback((v: number) => {
+    setDragTarget(null);
+    setTarget(v);
+  }, [setTarget]);
 
   useEffect(() => {
     document.title = `Camp Hub - ${socText}`;
@@ -74,11 +65,12 @@ export function App() {
             onChange={(v) => setPower(v === "On")}
           />
           <Slider
-            value={displayTarget}
+            value={dragTarget ?? displayTarget}
             min={TEMP_MIN}
             max={TEMP_MAX}
             unit="°"
-            onChange={setTarget}
+            onChange={onTargetChange}
+            onDrag={setDragTarget}
           />
           <Radio
             label="Mode"
@@ -87,7 +79,7 @@ export function App() {
             onChange={setMode}
           />
           <Radio
-            label="Cutoff"
+            label="Batt. Protect"
             options={CUTOFF_LEVELS}
             value={cutoff ?? "High"}
             onChange={setCutoff}

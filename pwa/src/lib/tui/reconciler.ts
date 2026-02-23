@@ -14,59 +14,9 @@ type Instance = BoxNode | TextNode | SliderNode | RadioNode;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Props = Record<string, any>;
 
-// --- Instance creation ---
+// --- Instance creation and prop application ---
 
-function createInstance(type: string, props: Props): Instance {
-  switch (type) {
-    case "tui-box":
-      return {
-        type: "box",
-        border: props.border ?? true,
-        borderColor: props.borderColor,
-        title: props.title,
-        headerValue: props.headerValue,
-        centered: props.centered,
-        children: [],
-      };
-    case "tui-text":
-      return {
-        type: "text",
-        label: props.label,
-        value: props.value,
-        valueColor: props.valueColor,
-        left: props.left,
-        leftColor: props.leftColor,
-        right: props.right,
-        rightColor: props.rightColor,
-        rightPrefix: props.rightPrefix,
-        rightPrefixColor: props.rightPrefixColor,
-        centered: props.centered,
-        onClick: props.onClick,
-        cursor: props.cursor,
-      };
-    case "tui-slider":
-      return {
-        type: "slider",
-        value: props.value,
-        min: props.min,
-        max: props.max,
-        unit: props.unit,
-        onChange: props.onChange,
-      };
-    case "tui-radio":
-      return {
-        type: "radio",
-        label: props.label,
-        options: props.options,
-        value: props.value,
-        onChange: props.onChange,
-      };
-    default:
-      throw new Error(`Unknown TUI element type: ${type}`);
-  }
-}
-
-function updateInstance(instance: Instance, props: Props): void {
+function applyProps(instance: Instance, props: Props): void {
   switch (instance.type) {
     case "box":
       instance.border = props.border ?? true;
@@ -95,6 +45,7 @@ function updateInstance(instance: Instance, props: Props): void {
       instance.max = props.max;
       instance.unit = props.unit;
       instance.onChange = props.onChange;
+      instance.onDrag = props.onDrag;
       break;
     case "radio":
       instance.label = props.label;
@@ -103,6 +54,18 @@ function updateInstance(instance: Instance, props: Props): void {
       instance.onChange = props.onChange;
       break;
   }
+}
+
+function createInstance(type: string, props: Props): Instance {
+  const instance = (type === "tui-box"
+    ? { type: "box", children: [] }
+    : type === "tui-text" ? { type: "text" }
+    : type === "tui-slider" ? { type: "slider" }
+    : type === "tui-radio" ? { type: "radio" }
+    : null) as Instance | null;
+  if (!instance) throw new Error(`Unknown TUI element type: ${type}`);
+  applyProps(instance, props);
+  return instance;
 }
 
 // --- Tree mutation helpers ---
@@ -167,7 +130,7 @@ const hostConfig = {
   },
 
   commitUpdate(instance: Instance, _type: string, _oldProps: Props, newProps: Props) {
-    updateInstance(instance, newProps);
+    applyProps(instance, newProps);
   },
   commitMount() {},
   commitTextUpdate() {},
