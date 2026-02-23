@@ -42,15 +42,6 @@ body {
   position: relative;
 }
 
-.app.disconnected {
-  filter: saturate(0.2) brightness(0.6);
-  pointer-events: none;
-}
-
-/* Status bar */
-.status-dot--connected { color: var(--green); }
-.status-dot--disconnected { color: var(--red); }
-
 /* Pre-rendered TUI blocks */
 .tui-pre {
   margin: 0;
@@ -110,11 +101,4 @@ body {
 
 .tui-overlay--radio:hover {
   background: rgba(255, 100, 203, 0.08);
-}
-
-.panels {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto;
 }
