@@ -23,7 +23,7 @@ esphome:
           gpio_set_direction(GPIO_NUM_3, GPIO_MODE_OUTPUT);
           gpio_set_level(GPIO_NUM_3, 0);
           gpio_set_direction(GPIO_NUM_14, GPIO_MODE_OUTPUT);
-          gpio_set_level(GPIO_NUM_14, 1);  // 0 = internal (PCB), 1 = external (U.FL)
+          gpio_set_level(GPIO_NUM_14, 0);  // 0 = internal (PCB), 1 = external (U.FL)
 
 esp32:
   board: seeed_xiao_esp32c6
