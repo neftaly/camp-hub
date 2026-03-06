@@ -2,6 +2,10 @@
 
 ESP32-C6 BLE monitor for dual JK-BMS batteries and Alpicool fridge, with e-paper display.
 
+## Status
+
+Built, working. Undergoing longer-term stability & offline (HA) testing.
+
 ## BOM
 
 - Seeed XIAO ESP32-C6
